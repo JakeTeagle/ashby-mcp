@@ -1,90 +1,85 @@
-# ashby-mcp
+# Ashby MCP
 
-An MCP (Model Context Protocol) server for the [Ashby](https://ashbyhq.com) ATS API. Exposes Ashby recruiting data and actions as tools for use with Claude and other MCP-compatible AI clients.
+Connect your Ashby recruiting data to Claude. Once set up, you can ask Claude things like:
 
-## Tools
+- *"Show me all active applications for the Engineering Manager role"*
+- *"Search for candidate Jane Smith"*
+- *"What interview stages does this job have?"*
+- *"List all open job postings"*
 
-**Candidates**
-- `candidate_search` — search by email or name
-- `candidate_list` — paginated list of all candidates
-- `candidate_info` — details for a specific candidate
-- `candidate_create` — create a new candidate
-- `candidate_create_note` — add a note to a candidate
-- `candidate_add_tag` — tag a candidate
+---
 
-**Applications**
-- `application_list` — paginated list with filters (job, status)
-- `application_info` — details for a specific application
-- `application_change_stage` — move to a different interview stage
-- `application_update` — update custom fields or source
-- `application_feedback_list` — list feedback for an application
+## What you'll need
 
-**Jobs**
-- `job_list` — paginated list of all jobs
-- `job_info` — details for a specific job
-- `job_search` — search by title
+1. **Node.js** installed on your computer — download it at [nodejs.org](https://nodejs.org) (click the big green "LTS" button)
+2. **An Ashby API key** — go to Ashby → Settings → Integrations → API Keys → Create a new key
+3. **Claude Desktop** — download at [claude.ai/download](https://claude.ai/download)
 
-**Job Postings**
-- `job_posting_list` — list public postings with status filter
-- `job_posting_info` — details for a specific posting
+---
 
-**Interview Schedules**
-- `interview_schedule_list` — paginated list, filterable by application
-- `interview_schedule_cancel` — cancel a schedule
-- `interview_stage_list` — list stages, optionally filtered by job
+## Setup (5 minutes)
 
-**Offers**
-- `offer_list` — paginated list of all offers
-- `offer_info` — details for a specific offer
+### Step 1 — Download this project
 
-**Users & Org**
-- `user_list` — list all users
-- `user_search` — search by email or name
-- `department_list` — list departments
-- `source_list` — list candidate sources
-- `candidate_tag_list` — list available tags
-- `custom_field_list` — list custom fields by object type
+Click the green **Code** button at the top of this page, then click **Download ZIP**. Unzip it somewhere easy to find, like your Desktop.
 
-## Setup
+### Step 2 — Install dependencies
 
-### Prerequisites
-- Node.js 18+
-- An Ashby API key (Settings → Integrations → API Keys)
+Open **Terminal** (press `Cmd + Space`, type "Terminal", press Enter) and run:
 
-### Install
-
-```bash
-git clone https://github.com/YOUR_USERNAME/ashby-mcp.git
-cd ashby-mcp
+```
+cd ~/Desktop/ashby-mcp
 npm install
 ```
 
-### Configure with Claude Desktop
+### Step 3 — Connect to Claude Desktop
 
-Add to your `claude_desktop_config.json`:
+Open this file in a text editor:
+
+```
+~/Library/Application Support/Claude/claude_desktop_config.json
+```
+
+> **Tip:** In Finder, press `Cmd + Shift + G`, paste the path above, and press Go.
+
+Add the following inside the file. If the file already has content, add this inside the `"mcpServers"` section:
 
 ```json
 {
   "mcpServers": {
     "ashby": {
       "command": "node",
-      "args": ["/absolute/path/to/ashby-mcp/index.js"],
+      "args": ["/Users/YOUR_NAME/Desktop/ashby-mcp/index.js"],
       "env": {
-        "ASHBY_API_KEY": "your-api-key-here"
+        "ASHBY_API_KEY": "paste-your-api-key-here"
       }
     }
   }
 }
 ```
 
-### Configure with Claude Code
+Replace `YOUR_NAME` with your Mac username and paste your Ashby API key where indicated.
 
-```bash
-ASHBY_API_KEY=your-api-key-here node /path/to/ashby-mcp/index.js
-```
+### Step 4 — Restart Claude Desktop
 
-Or add it via the Claude Code MCP settings.
+Quit Claude Desktop completely and reopen it. You're ready to go!
 
-## License
+---
 
-ISC
+## What can it do?
+
+| Ask Claude about... | Examples |
+|---|---|
+| **Candidates** | Search, view, create candidates; add notes and tags |
+| **Applications** | List, filter, and move applications through stages |
+| **Jobs** | Search and view job details |
+| **Job Postings** | See published, draft, or closed postings |
+| **Interviews** | View and cancel interview schedules |
+| **Offers** | List and view offer details |
+| **Your team** | Look up users and departments |
+
+---
+
+## Need help?
+
+Open an issue on this GitHub page and describe what's going wrong — include any error messages you see.
