@@ -83,3 +83,5 @@ Quit Claude Desktop completely and reopen it. You're ready to go!
 ## Need help?
 
 Open an issue on this GitHub page and describe what's going wrong — include any error messages you see.
+OR
+Email me - Jake (dot) teagle (at) v7labs.com
