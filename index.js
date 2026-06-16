@@ -1,5 +1,8 @@
+import crypto from "crypto";
+import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { z } from "zod";
 
 const ASHBY_API_BASE = "https://api.ashbyhq.com";
@@ -605,7 +608,90 @@ server.tool(
   }
 );
 
+// ─── OAuth provider (auto-approves — internal use only) ───────────────────────
+
+const clients = new Map();
+const authCodes = new Map();
+const tokens = new Map();
+
+const oauthProvider = {
+  get clientsStore() {
+    return {
+      async getClient(clientId) {
+        if (clients.has(clientId)) return clients.get(clientId);
+        // Auto-accept any client — redirect_uris filled on first authorize call
+        const recovered = { clientId, client_secret_expires_at: 0, redirect_uris: [], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], token_endpoint_auth_method: "none" };
+        clients.set(clientId, recovered);
+        return recovered;
+      },
+      async registerClient(client) {
+        const registered = { ...client, clientId: client.clientId ?? crypto.randomUUID(), clientSecretExpiresAt: 0 };
+        registered.redirect_uris = registered.redirect_uris ?? registered.redirectUris ?? [];
+        const id = registered.client_id ?? registered.clientId;
+        clients.set(id, registered);
+        return registered;
+      },
+    };
+  },
+  async authorize(client, params, res) {
+    // Always add the requested redirect URI so any redirect is accepted
+    if (!client.redirect_uris) client.redirect_uris = [];
+    if (!client.redirect_uris.includes(params.redirectUri)) {
+      client.redirect_uris.push(params.redirectUri);
+      clients.set(client.clientId, client);
+    }
+    const code = crypto.randomUUID();
+    authCodes.set(code, { clientId: client.clientId, codeChallenge: params.codeChallenge, redirectUri: params.redirectUri });
+    const url = new URL(params.redirectUri);
+    url.searchParams.set("code", code);
+    if (params.state) url.searchParams.set("state", params.state);
+    res.redirect(url.toString());
+  },
+  async challengeForAuthorizationCode(_client, code) {
+    return authCodes.get(code)?.codeChallenge ?? "";
+  },
+  async exchangeAuthorizationCode(_client, code) {
+    authCodes.delete(code);
+    const token = crypto.randomUUID();
+    const refresh = crypto.randomUUID();
+    tokens.set(token, { clientId: _client.clientId, scopes: [] });
+    return { access_token: token, token_type: "bearer", expires_in: 86400, refresh_token: refresh };
+  },
+  async exchangeRefreshToken(_client) {
+    const token = crypto.randomUUID();
+    tokens.set(token, { clientId: _client.clientId, scopes: [] });
+    return { access_token: token, token_type: "bearer", expires_in: 86400 };
+  },
+  async verifyAccessToken(token) {
+    const info = tokens.get(token);
+    if (!info) throw new Error("Invalid token");
+    return { token, clientId: info.clientId, scopes: info.scopes, expiresAt: Date.now() / 1000 + 86400 };
+  },
+};
+
 // ─── Start server ──────────────────────────────────────────────────────────────
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+
+const app = express();
+app.set("trust proxy", 1);
+
+app.use(mcpAuthRouter({
+  provider: oauthProvider,
+  issuerUrl: new URL(BASE_URL),
+  resourceName: "Ashby MCP",
+}));
+
+app.post("/mcp", async (req, res) => {
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  res.on("close", () => transport.close());
+  await server.connect(transport);
+  await transport.handleRequest(req, res);
+});
+
+app.get("/health", (_req, res) => res.send("ok"));
+
+app.listen(PORT, () => {
+  console.error(`ashby-mcp listening on ${BASE_URL}/mcp`);
+});
